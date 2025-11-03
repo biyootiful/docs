@@ -3,85 +3,645 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biyootiful lab - Legal</title>
+    <title>Chat with AI Assistant</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
+            background: #343541;
+            color: #ececf1;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: #202123;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #444654;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #444654;
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 12px 16px;
+            background: transparent;
+            border: 1px solid #565869;
+            border-radius: 6px;
+            color: #ececf1;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+
+        .new-chat-btn:hover {
+            background: #2a2b32;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            padding: 12px;
+            overflow-y: auto;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid #444654;
+            font-size: 12px;
+            color: #8e8ea0;
+        }
+
+        .about-section {
+            margin-bottom: 12px;
+        }
+
+        .about-section h3 {
+            font-size: 13px;
+            color: #ececf1;
+            margin-bottom: 8px;
+        }
+
+        .about-section p {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #c5c5d2;
+        }
+
+        /* Main Chat Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .chat-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #444654;
+            text-align: center;
+            background: #343541;
+        }
+
+        .chat-header h1 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ececf1;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message-wrapper {
+            padding: 24px;
+            border-bottom: 1px solid #444654;
+        }
+
+        .message-wrapper.user {
+            background: #343541;
+        }
+
+        .message-wrapper.assistant {
+            background: #444654;
+        }
+
+        .message-content {
             max-width: 800px;
             margin: 0 auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+        }
+
+        .avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
         }
-        .container {
-            background-color: white;
-            padding: 60px 40px;
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-            text-align: center;
+
+        .avatar.user {
+            background: #5436da;
         }
-        h1 {
-            color: #4CAF50;
-            margin-bottom: 10px;
-            font-size: 2.5em;
+
+        .avatar.assistant {
+            background: #19c37d;
         }
-        .subtitle {
-            color: #666;
-            font-size: 1.1em;
-            margin-bottom: 40px;
+
+        .message-text {
+            flex: 1;
+            line-height: 1.7;
+            font-size: 16px;
+            color: #ececf1;
+            word-wrap: break-word;
         }
-        .links {
+
+        .message-text p {
+            margin-bottom: 12px;
+        }
+
+        .message-text p:last-child {
+            margin-bottom: 0;
+        }
+
+        .typing-indicator {
+            display: inline-flex;
+            gap: 4px;
+            padding: 8px 0;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #8e8ea0;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                opacity: 0.3;
+            }
+            30% {
+                opacity: 1;
+            }
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            max-width: 400px;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            max-width: 800px;
             margin: 0 auto;
         }
-        .link-card {
-            display: block;
-            padding: 20px 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            text-decoration: none;
+
+        .welcome-screen h1 {
+            font-size: 32px;
+            margin-bottom: 40px;
+            color: #ececf1;
+        }
+
+        .example-prompts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+            width: 100%;
+            margin-bottom: 40px;
+        }
+
+        .example-prompt {
+            padding: 16px;
+            background: #444654;
+            border: 1px solid #565869;
             border-radius: 8px;
-            font-size: 1.2em;
-            font-weight: 600;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            cursor: pointer;
+            transition: background 0.2s;
+            text-align: left;
         }
-        .link-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+
+        .example-prompt:hover {
+            background: #505162;
         }
-        .footer {
-            margin-top: 40px;
-            color: #999;
-            font-size: 0.9em;
+
+        .example-prompt h3 {
+            font-size: 14px;
+            margin-bottom: 6px;
+            color: #ececf1;
+        }
+
+        .example-prompt p {
+            font-size: 13px;
+            color: #c5c5d2;
+            line-height: 1.4;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 20px;
+            background: #343541;
+        }
+
+        .input-container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .input-wrapper {
+            background: #40414f;
+            border: 1px solid #565869;
+            border-radius: 12px;
+            display: flex;
+            align-items: flex-end;
+            padding: 12px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+        }
+
+        .chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #ececf1;
+            font-size: 16px;
+            font-family: inherit;
+            resize: none;
+            max-height: 200px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+
+        .chat-input::placeholder {
+            color: #8e8ea0;
+        }
+
+        .send-button {
+            background: #19c37d;
+            border: none;
+            border-radius: 6px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+
+        .send-button:hover:not(:disabled) {
+            background: #1a9d66;
+        }
+
+        .send-button:disabled {
+            background: #40414f;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .send-icon {
+            width: 20px;
+            height: 20px;
+            color: white;
+        }
+
+        /* Scrollbar Styling */
+        .chat-messages::-webkit-scrollbar,
+        .sidebar-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track,
+        .sidebar-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb,
+        .sidebar-content::-webkit-scrollbar-thumb {
+            background: #565869;
+            border-radius: 4px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover,
+        .sidebar-content::-webkit-scrollbar-thumb:hover {
+            background: #6e6e80;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -260px;
+                top: 0;
+                bottom: 0;
+                z-index: 1000;
+                transition: left 0.3s;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
+            .example-prompts {
+                grid-template-columns: 1fr;
+            }
+
+            .welcome-screen h1 {
+                font-size: 24px;
+            }
+        }
+
+        /* Loading State */
+        .loading-message {
+            font-style: italic;
+            color: #8e8ea0;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Salad Days</h1>
-        <p class="subtitle">Smart Nutrition Tracking App</p>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <button class="new-chat-btn" onclick="newChat()">
+                <span>+</span>
+                <span>New chat</span>
+            </button>
+        </div>
+        <div class="sidebar-content">
+            <div class="about-section">
+                <h3>About This Bot</h3>
+                <p>I'm an AI assistant that can answer questions about my creator's background, skills, experience, and projects.</p>
+            </div>
+            <div class="about-section">
+                <h3>What I Know</h3>
+                <p>• Professional experience<br>• Technical skills<br>• Education background<br>• Personal projects<br>• Certifications</p>
+            </div>
+        </div>
+        <div class="sidebar-footer">
+            <p>Powered by RAG + Groq AI</p>
+        </div>
+    </div>
 
-        <div class="links">
-            <a href="sd-privacy-policy.html" class="link-card">
-                Privacy Policy
-            </a>
-            <a href="sd-terms-of-service.html" class="link-card">
-                Terms of Service
-            </a>
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Chat Header -->
+        <div class="chat-header">
+            <h1>AI Assistant</h1>
         </div>
 
-        <p class="footer">
-            &copy; 2025 Biyootiful. All rights reserved.
-        </p>
+        <!-- Chat Messages -->
+        <div class="chat-messages" id="chatMessages">
+            <!-- Welcome Screen -->
+            <div class="welcome-screen" id="welcomeScreen">
+                <h1>Ask me anything</h1>
+                <div class="example-prompts">
+                    <div class="example-prompt" onclick="usePrompt('What are your technical skills?')">
+                        <h3>💼 Skills</h3>
+                        <p>What are your technical skills and expertise?</p>
+                    </div>
+                    <div class="example-prompt" onclick="usePrompt('Tell me about your work experience')">
+                        <h3>🏢 Experience</h3>
+                        <p>Tell me about your work experience</p>
+                    </div>
+                    <div class="example-prompt" onclick="usePrompt('What projects have you worked on?')">
+                        <h3>🚀 Projects</h3>
+                        <p>What projects have you worked on?</p>
+                    </div>
+                    <div class="example-prompt" onclick="usePrompt('What is your educational background?')">
+                        <h3>🎓 Education</h3>
+                        <p>What is your educational background?</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea
+                        id="chatInput"
+                        class="chat-input"
+                        placeholder="Send a message..."
+                        rows="1"
+                        onkeydown="handleKeyDown(event)"
+                        oninput="autoResize(this)"
+                    ></textarea>
+                    <button class="send-button" id="sendButton" onclick="sendMessage()">
+                        <svg class="send-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <script>
+        // Configuration - UPDATE THIS
+        const API_ENDPOINT = 'http://localhost:8000/chat';
+
+        let conversationHistory = [];
+
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function hideWelcomeScreen() {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            if (welcomeScreen) {
+                welcomeScreen.style.display = 'none';
+            }
+        }
+
+        function addMessage(text, isUser) {
+            hideWelcomeScreen();
+
+            const messagesContainer = document.getElementById('chatMessages');
+
+            const wrapper = document.createElement('div');
+            wrapper.className = `message-wrapper ${isUser ? 'user' : 'assistant'}`;
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+
+            const avatar = document.createElement('div');
+            avatar.className = `avatar ${isUser ? 'user' : 'assistant'}`;
+            avatar.textContent = isUser ? '👤' : '🤖';
+
+            const messageText = document.createElement('div');
+            messageText.className = 'message-text';
+            messageText.textContent = text;
+
+            content.appendChild(avatar);
+            content.appendChild(messageText);
+            wrapper.appendChild(content);
+
+            messagesContainer.appendChild(wrapper);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            return wrapper;
+        }
+
+        function addLoadingMessage() {
+            hideWelcomeScreen();
+
+            const messagesContainer = document.getElementById('chatMessages');
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper assistant';
+            wrapper.id = 'loadingMessage';
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar assistant';
+            avatar.textContent = '🤖';
+
+            const messageText = document.createElement('div');
+            messageText.className = 'message-text';
+
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'typing-indicator';
+            typingIndicator.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+
+            messageText.appendChild(typingIndicator);
+            content.appendChild(avatar);
+            content.appendChild(messageText);
+            wrapper.appendChild(content);
+
+            messagesContainer.appendChild(wrapper);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            return wrapper;
+        }
+
+        function removeLoadingMessage() {
+            const loadingMessage = document.getElementById('loadingMessage');
+            if (loadingMessage) {
+                loadingMessage.remove();
+            }
+        }
+
+        async function sendMessage(message = null) {
+            const input = document.getElementById('chatInput');
+            const sendButton = document.getElementById('sendButton');
+            const messageText = message || input.value.trim();
+
+            if (!messageText) return;
+
+            // Disable input
+            input.disabled = true;
+            sendButton.disabled = true;
+
+            // Add user message
+            addMessage(messageText, true);
+            conversationHistory.push({ role: 'user', content: messageText });
+
+            // Clear input
+            if (!message) {
+                input.value = '';
+                input.style.height = 'auto';
+            }
+
+            // Add loading indicator
+            addLoadingMessage();
+
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: messageText })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Remove loading
+                removeLoadingMessage();
+
+                // Add assistant response
+                addMessage(data.response, false);
+                conversationHistory.push({ role: 'assistant', content: data.response });
+
+            } catch (error) {
+                console.error('Error:', error);
+                removeLoadingMessage();
+                addMessage('Sorry, I encountered an error. Please make sure the API endpoint is configured correctly in the code.', false);
+            } finally {
+                // Re-enable input
+                input.disabled = false;
+                sendButton.disabled = false;
+                input.focus();
+            }
+        }
+
+        function usePrompt(prompt) {
+            sendMessage(prompt);
+        }
+
+        function newChat() {
+            const messagesContainer = document.getElementById('chatMessages');
+            messagesContainer.innerHTML = `
+                <div class="welcome-screen" id="welcomeScreen">
+                    <h1>Ask me anything</h1>
+                    <div class="example-prompts">
+                        <div class="example-prompt" onclick="usePrompt('What are your technical skills?')">
+                            <h3>💼 Skills</h3>
+                            <p>What are your technical skills and expertise?</p>
+                        </div>
+                        <div class="example-prompt" onclick="usePrompt('Tell me about your work experience')">
+                            <h3>🏢 Experience</h3>
+                            <p>Tell me about your work experience</p>
+                        </div>
+                        <div class="example-prompt" onclick="usePrompt('What projects have you worked on?')">
+                            <h3>🚀 Projects</h3>
+                            <p>What projects have you worked on?</p>
+                        </div>
+                        <div class="example-prompt" onclick="usePrompt('What is your educational background?')">
+                            <h3>🎓 Education</h3>
+                            <p>What is your educational background?</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            conversationHistory = [];
+            document.getElementById('chatInput').focus();
+        }
+
+        // Focus input on load
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('chatInput').focus();
+        });
+    </script>
 </body>
 </html>

@@ -1,0 +1,148 @@
+{
+  "personal_info": {
+    "name": "Bi Yoo",
+    "title": "Lead Software Engineer & Technical Lead",
+    "bio": "Seasoned full-stack and machine learning-focused tech lead building revenue-driving ad tech platforms, data products, and developer tooling.",
+    "location": "Minnesota, USA",
+    "email": "yoobi.dev@gmail.com",
+    "phone": "952-567-3505",
+    "linkedin": "https://www.linkedin.com/in/biyoo/",
+    "github": "https://github.com/biyootiful",
+    "website": "https://biyootiful.com",
+    "work_authorization": "U.S. Citizen; no sponsorship required",
+    "gender": "male"
+  },
+
+  "summary": "Tech lead with a decade of experience shipping large-scale ad tech, data, and ML systems. Drives architecture across Java, Go, and Python services, mentors multi-disciplinary teams, and delivers measurable revenue impact through experimentation and applied machine learning.",
+
+  "skills": {
+    "programming_languages": ["Python", "JavaScript", "TypeScript", "Java", "Go", "SQL"],
+    "frameworks": ["React", "React Native", "Vue", "Angular", "Spring Boot", "Express", "FastAPI", "Django"],
+    "ml_and_data": ["RAG pipelines", "Forecasting models", "TTS/STT", "Vector search", "Feature engineering"],
+    "datastores": ["Snowflake", "Apache Druid", "MongoDB", "PostgreSQL", "MySQL", "OracleSQL"],
+    "tools": ["AWS", "Kubernetes", "Docker", "Airflow", "Kafka", "CircleCI", "Jenkins", "Git", "Terraform"],
+    "soft_skills": ["Technical leadership", "Cross-functional collaboration", "Mentoring", "Strategic planning", "Stakeholder communication"]
+  },
+
+  "experience": [
+    {
+      "title": "Lead Software Engineer, Ad & Revenue Ops",
+      "company": "Insticator",
+      "location": "Remote, USA",
+      "duration": "Dec 2021 - Present",
+      "description": "Tech lead overseeing ad monetization platforms, ML initiatives, and full-stack delivery for publisher revenue products.",
+      "achievements": [
+        "Architected ML wrappers that power interactive site experiences, including multimodal RAG pipelines for content generation and campaign insights.",
+        "Delivered ad performance forecasting models that inform bidding strategies and revenue planning across 2,000+ publisher properties.",
+        "Built and productionized Go-based services for ad exchange bidding and real-time pixel tracking, integrating with existing Java services.",
+        "Designed analytics workflows that combine Snowflake and Apache Druid to surface revenue, engagement, and latency KPI dashboards with sub-second query times.",
+        "Authored and maintained Airflow DAGs and Kafka streaming jobs that ingest SSP and ad server payout data, automating onboarding and reconciliation tasks.",
+        "Drove engineering excellence by mentoring a distributed team of developers, reviewing architecture, and increasing sprint throughput by ~20% through codebase modernization.",
+        "Partnered with product and revenue stakeholders to prioritize experimentation, including AWS Lambda@Edge-based A/B testing for header bidding clients that lifted revenue per ad unit by ~30%."
+      ]
+    },
+    {
+      "title": "Senior Software Engineer (Core Platform, Module Lead)",
+      "company": "Protenus",
+      "location": "Baltimore, MD (Remote)",
+      "duration": "Aug 2020 - Dec 2021",
+      "description": "Module lead for healthcare compliance analytics platform spanning UI, API, and data pipelines.",
+      "achievements": [
+        "Led development of mission-critical React and Spring Boot features that processed high-volume EHR data from Epic and Cerner systems.",
+        "Raised average automated test coverage from near-zero to 80% across front-end and API codebases through tooling, reviews, and mentoring.",
+        "Architected hospital workforce analytics dashboards, surfacing ETL pipeline health and anomaly detection insights for compliance teams.",
+        "Optimized MongoDB-backed services to reduce response times and improve reliability for clinical operations users.",
+        "Collaborated with data science teams to productionize ML features and delivered developer tooling that accelerated release cadence."
+      ]
+    },
+    {
+      "title": "Software Engineer, Front-end & Data Platforms",
+      "company": "PreciseTarget",
+      "location": "Washington, D.C.",
+      "duration": "Jan 2018 - Aug 2020",
+      "description": "Full-stack engineer building retail recommendation systems and large-scale data processing pipelines.",
+      "achievements": [
+        "Developed React and Vue applications surfacing >50M SKUs with advanced filtering, analytics, and personalization.",
+        "Implemented Node.js and Python services for catalog ingestion, event tracking, and data validation.",
+        "Created end-to-end integration test frameworks within CircleCI to safeguard complex merchandising logic.",
+        "Refined PostgreSQL middleware to improve query speed, data integrity, and resilience for retail data pipelines.",
+        "Mentored junior engineers and codified best practices for front-end architecture and deployment workflows."
+      ]
+    },
+    {
+      "title": "Full-stack Engineer & Consultant (Various Contracts)",
+      "company": "Meaningful Gigs, SL Technology, Brivo, The Washington Post, AList Magazine",
+      "location": "Washington, D.C. Metro Area",
+      "duration": "Apr 2014 - Jan 2019",
+      "description": "Delivered end-to-end web and mobile solutions across media, design, and manufacturing clients.",
+      "achievements": [
+        "Shipped responsive web applications using React, Laravel, AWS Lambda, and MongoDB to modernize content workflows.",
+        "Designed reusable component libraries, testing frameworks, and CI/CD pipelines to accelerate delivery for client teams.",
+        "Built internal tooling in Objective-C, PHP, and Python to automate content publishing and analytics.",
+        "Partnered with stakeholders to define product strategy, manage releases, and mentor cross-functional contributors."
+      ]
+    }
+  ],
+
+  "education": [
+    {
+      "degree": "Master of Science, Computer Science (Software Engineering)",
+      "institution": "University of Maryland Global Campus",
+      "location": "Maryland, USA"
+    },
+    {
+      "degree": "Bachelor of Arts, Digital Communication (Cum Laude)",
+      "institution": "University of Missouri",
+      "location": "Missouri, USA"
+    },
+    {
+      "degree": "Bachelor of Fine Arts, Product Design",
+      "institution": "Hongik University",
+      "location": "Seoul, South Korea"
+    }
+  ],
+
+  "projects": [
+    {
+      "name": "SaladDays (Mobile App)",
+      "description": "A health and nutrition companion app using computer vision and vector embeddings to provide calorie estimates, alongside an LLM-powered coaching chat experience.",
+      "technologies": ["React Native", "Python", "Vision AI", "Vector embeddings", "LLM"],
+      "link": "",
+      "highlights": [
+        "Applies multimodal inference to improve food recognition accuracy and calorie estimation.",
+        "Integrates conversational coaching that adapts to user goals and nutrition insights.",
+        "Currently in App Store review with launch-ready onboarding and retention flows."
+      ]
+    },
+    {
+      "name": "ML Benchmarking Portal",
+      "description": "In-progress internal site to evaluate emerging ML models and track performance across ad optimization workloads.",
+      "technologies": ["FastAPI", "React", "Faiss", "LLM evaluation tooling"],
+      "link": "",
+      "highlights": [
+        "Aggregates dataset benchmarks, latency metrics, and cost curves for rapid model comparison.",
+        "Supports plug-and-play evaluation harnesses for new third-party and in-house models."
+      ]
+    },
+    {
+      "name": "Speech Applications (TTS/STT)",
+      "description": "Side projects experimenting with text-to-speech and speech-to-text pipelines for accessibility and creative tooling.",
+      "technologies": ["Python", "Hugging Face Transformers", "Whisper", "Tacotron"],
+      "link": "",
+      "highlights": [
+        "Built custom wrappers and deployment patterns to streamline multimodal experimentation.",
+        "Evaluated latency vs. quality trade-offs for productionizing voice-driven experiences."
+      ]
+    }
+  ],
+
+  "certifications": [],
+
+  "interests": [
+    "Applied machine learning for ad tech",
+    "Developer mentorship and leadership",
+    "Data visualization and storytelling",
+    "Digital health and wellness products",
+    "Scaling high-throughput platforms"
+  ]
+}
