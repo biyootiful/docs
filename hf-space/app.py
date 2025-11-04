@@ -391,7 +391,6 @@ def initialize_llm():
                 n_threads=LOCAL_MODEL_THREADS,
                 n_batch=LOCAL_MODEL_BATCH_SIZE,
                 n_gpu_layers=0,
-                chat_format="gemma",  # Works for both Gemma 1 and Gemma 2
                 verbose=True,  # Enable to see prompt formatting
             )
         except Exception as load_err:
@@ -511,7 +510,7 @@ def generate_response(
     if assistant_query:
         persona_instruction = (
             "Respond in first person as Bi's AI assistant. Mention you run locally on a "
-            "quantized Google Gemma 2B IT model (Q4_K_M via llama.cpp with MiniLM embeddings and FAISS)."
+            "quantized TinyLlama 1.1B Chat model (Q4_K_M via llama.cpp with MiniLM embeddings and FAISS)."
         )
     else:
         persona_instruction = (

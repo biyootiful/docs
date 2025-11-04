@@ -15,9 +15,9 @@ HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")
 HUGGINGFACE_MODEL = "google/gemma-2-2b-it"
 
 # Local model configuration (for quantized models hosted within the Space)
-LOCAL_MODEL_REPO = os.getenv("LOCAL_MODEL_REPO", "tensorblock/gemma-2-2b-it-GGUF")
-LOCAL_MODEL_FILENAME = os.getenv("LOCAL_MODEL_FILENAME", "gemma-2-2b-it-Q4_K_M.gguf")
-LOCAL_MODEL_CONTEXT_LENGTH = int(os.getenv("LOCAL_MODEL_CONTEXT_LENGTH", "4096"))
+LOCAL_MODEL_REPO = os.getenv("LOCAL_MODEL_REPO", "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF")
+LOCAL_MODEL_FILENAME = os.getenv("LOCAL_MODEL_FILENAME", "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf")
+LOCAL_MODEL_CONTEXT_LENGTH = int(os.getenv("LOCAL_MODEL_CONTEXT_LENGTH", "2048"))
 LOCAL_MODEL_THREADS = int(os.getenv("LOCAL_MODEL_THREADS", str(os.cpu_count() or 4)))
 LOCAL_MODEL_BATCH_SIZE = int(os.getenv("LOCAL_MODEL_BATCH_SIZE", "256"))
 LOCAL_MODEL_MAX_OUTPUT_TOKENS = int(os.getenv("LOCAL_MODEL_MAX_OUTPUT_TOKENS", "512"))

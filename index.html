@@ -582,7 +582,7 @@
         <div class="sidebar-content">
             <div class="about-section">
                 <h3>Model specs</h3>
-                <p>Running a local RAG stack: Gemma 2B IT quantized to Q4_K_M via llama.cpp, with MiniLM embeddings and FAISS on CPU only—no external inference calls. Responses may take a few seconds—this runs on a free CPU Space.</p>
+                <p>Running a local RAG stack: TinyLlama 1.1B Chat quantized to Q4_K_M via llama.cpp, with MiniLM embeddings and FAISS on CPU only—no external inference calls. Responses may take a few seconds—this runs on a free CPU Space.</p>
             </div>
             <div class="about-section">
                 <h3>Suggested prompts</h3>
@@ -595,7 +595,7 @@
             </div>
             <div class="about-section">
                 <h3>Note</h3>
-                <p>This assistant runs on a lightweight quantized 2B model for cost-effective self-hosting. Due to its small size, responses may occasionally be imprecise or hallucinate details not present in Bi's
+                <p>This assistant runs on a lightweight quantized 1.1B model for cost-effective self-hosting. Due to its small size, responses may occasionally be imprecise or hallucinate details not present in Bi's
    actual CV.</p>
             </div>
         </div>
@@ -661,6 +661,7 @@
     <script>
         // Configuration - UPDATE THIS
         const API_ENDPOINT = 'https://biyootiful-cv-chatbot.hf.space/chat';
+        // const API_ENDPOINT ='http://localhost:8000/chat';
         const SESSION_TOKEN_ENDPOINT = API_ENDPOINT.replace(/\/?chat$/, '/session-token');
         let sessionToken = null;
         let sessionTokenExpiry = 0;
