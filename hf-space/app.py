@@ -11,8 +11,6 @@ import time
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 import torch
-import httpx
-import inspect
 from fastapi import Depends, FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -73,32 +71,9 @@ if not hasattr(huggingface_hub, "cached_download"):
 from sentence_transformers import SentenceTransformer
 import faiss
 
-# Patch httpx to gracefully ignore deprecated `proxies` argument used by groq client when running with httpx>=0.28.
-if "proxies" not in inspect.signature(httpx.Client.__init__).parameters:
-    _original_httpx_client_init = httpx.Client.__init__
-
-    def _httpx_client_init_with_proxies(self, *args, proxies=None, **kwargs):
-        return _original_httpx_client_init(self, *args, **kwargs)
-
-    httpx.Client.__init__ = _httpx_client_init_with_proxies  # type: ignore[assignment]
-
-if "proxies" not in inspect.signature(httpx.AsyncClient.__init__).parameters:
-    _original_httpx_async_client_init = httpx.AsyncClient.__init__
-
-    def _httpx_async_client_init_with_proxies(self, *args, proxies=None, **kwargs):
-        if proxies is not None and "proxy" not in kwargs:
-            kwargs["proxy"] = proxies
-        return _original_httpx_async_client_init(self, *args, **kwargs)
-
-    httpx.AsyncClient.__init__ = _httpx_async_client_init_with_proxies  # type: ignore[assignment]
-
-from groq import Groq
-
 # Import configuration
 from config import (
     LLM_PROVIDER,
-    GROQ_API_KEY,
-    GROQ_MODEL,
     HUGGINGFACE_API_KEY,
     HUGGINGFACE_MODEL,
     LOCAL_MODEL_REPO,
@@ -375,12 +350,7 @@ def initialize_llm():
     """Initialize LLM client based on provider"""
     global llm_client, local_model_path
 
-    if LLM_PROVIDER == "groq":
-        if not GROQ_API_KEY:
-            raise ValueError("GROQ_API_KEY not set in environment variables")
-        llm_client = Groq(api_key=GROQ_API_KEY)
-        print(f"Initialized Groq client with model: {GROQ_MODEL}")
-    elif LLM_PROVIDER == "huggingface":
+    if LLM_PROVIDER == "huggingface":
         # Will use requests for HF Inference API
         if not HUGGINGFACE_API_KEY:
             raise ValueError("HUGGINGFACE_API_KEY not set in environment variables")
@@ -451,23 +421,6 @@ def retrieve_relevant_chunks(query: str, top_k: int = TOP_K_RESULTS) -> List[str
     relevant_chunks = [cv_chunks[idx] for idx in indices[0]]
 
     return relevant_chunks
-
-
-def generate_response_groq(prompt: str) -> str:
-    """Generate response using Groq API"""
-    try:
-        chat_completion = llm_client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt}
-            ],
-            model=GROQ_MODEL,
-            temperature=0.7,
-            max_tokens=500,
-        )
-        return chat_completion.choices[0].message.content
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Groq API error: {str(e)}")
 
 
 def generate_response_huggingface(prompt: str) -> str:
@@ -586,9 +539,7 @@ Provide a concise, professional answer based only on the context above."""
 
     combined_prompt = f"{system_prompt}\n\n{user_prompt}"
 
-    if LLM_PROVIDER == "groq":
-        return generate_response_groq(combined_prompt)
-    elif LLM_PROVIDER == "huggingface":
+    if LLM_PROVIDER == "huggingface":
         return generate_response_huggingface(combined_prompt)
     elif LLM_PROVIDER == "local":
         return generate_response_local(system_prompt, user_prompt)

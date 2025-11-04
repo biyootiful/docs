@@ -6,19 +6,13 @@ Change LLM_PROVIDER to switch between different models
 import os
 
 # Swappable LLM provider (environment configurable)
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "huggingface")  # Options: "groq", "huggingface", "openai", "local"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "local")  # Options: "huggingface", "local"
 
 # API Keys (set these as environment variables in HuggingFace Space secrets)
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # Model configurations
-GROQ_MODEL = "mixtral-8x7b-32768"  # Fast and good quality
-# GROQ_MODEL = "llama3-8b-8192"  # Alternative: faster but slightly lower quality
-
 HUGGINGFACE_MODEL = "google/gemma-2-2b-it"
-OPENAI_MODEL = "gpt-3.5-turbo"
 
 # Local model configuration (for quantized models hosted within the Space)
 LOCAL_MODEL_REPO = os.getenv("LOCAL_MODEL_REPO", "tensorblock/gemma-2-2b-it-GGUF")

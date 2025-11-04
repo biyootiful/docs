@@ -12,8 +12,7 @@ RAG-based chatbot for answering questions about professional background and expe
 
 Set environment variables in Space secrets:
 
-- `LLM_PROVIDER` - Set to `local` (default), `groq`, or `huggingface`
-- `GROQ_API_KEY` - Required if using Groq
+- `LLM_PROVIDER` - Set to `local` (default) or `huggingface`
 - `HUGGINGFACE_API_KEY` - Required if using HuggingFace Inference API
 - `SESSION_TOKEN_SECRET` - Optional, for session auth
 - `CLIENT_APP_ORIGINS` - Optional, comma-separated allowed origins
