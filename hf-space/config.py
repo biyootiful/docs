@@ -5,8 +5,8 @@ Change LLM_PROVIDER to switch between different models
 
 import os
 
-# Swappable LLM provider
-LLM_PROVIDER = "huggingface"  # Options: "groq", "huggingface", "openai"
+# Swappable LLM provider (environment configurable)
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "huggingface")  # Options: "groq", "huggingface", "openai", "local"
 
 # API Keys (set these as environment variables in HuggingFace Space secrets)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
@@ -19,6 +19,23 @@ GROQ_MODEL = "mixtral-8x7b-32768"  # Fast and good quality
 
 HUGGINGFACE_MODEL = "google/gemma-2-2b-it"
 OPENAI_MODEL = "gpt-3.5-turbo"
+
+# Local model configuration (for quantized models hosted within the Space)
+LOCAL_MODEL_REPO = os.getenv("LOCAL_MODEL_REPO", "tensorblock/gemma-2b-GGUF")
+LOCAL_MODEL_FILENAME = os.getenv("LOCAL_MODEL_FILENAME", "gemma-2b-Q4_K_M.gguf")
+LOCAL_MODEL_CONTEXT_LENGTH = int(os.getenv("LOCAL_MODEL_CONTEXT_LENGTH", "4096"))
+LOCAL_MODEL_THREADS = int(os.getenv("LOCAL_MODEL_THREADS", str(os.cpu_count() or 4)))
+LOCAL_MODEL_BATCH_SIZE = int(os.getenv("LOCAL_MODEL_BATCH_SIZE", "256"))
+LOCAL_MODEL_MAX_OUTPUT_TOKENS = int(os.getenv("LOCAL_MODEL_MAX_OUTPUT_TOKENS", "512"))
+LOCAL_MODEL_HF_TOKEN = os.getenv("LOCAL_MODEL_HF_TOKEN", HUGGINGFACE_API_KEY or "")
+
+# Access control configuration
+CLIENT_APP_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CLIENT_APP_ORIGINS", "").split(",")
+    if origin.strip()
+]
+API_ACCESS_TOKEN = os.getenv("API_ACCESS_TOKEN", "")
 
 # RAG Configuration
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # Fast, lightweight

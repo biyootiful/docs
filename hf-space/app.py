@@ -5,15 +5,18 @@ FastAPI backend that uses semantic search to answer questions about your CV
 
 import json
 import os
-from typing import List, Dict, Optional
+import re
+import threading
+from typing import List, Dict, Optional, Tuple
 import numpy as np
 import torch
 import httpx
 import inspect
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import huggingface_hub
+from huggingface_hub import hf_hub_download
 
 # Provide backward-compatible alias for deprecated cached_download expected by older sentence-transformers.
 if not hasattr(huggingface_hub, "cached_download"):
@@ -96,6 +99,15 @@ from config import (
     GROQ_MODEL,
     HUGGINGFACE_API_KEY,
     HUGGINGFACE_MODEL,
+    LOCAL_MODEL_REPO,
+    LOCAL_MODEL_FILENAME,
+    LOCAL_MODEL_CONTEXT_LENGTH,
+    LOCAL_MODEL_THREADS,
+    LOCAL_MODEL_BATCH_SIZE,
+    LOCAL_MODEL_MAX_OUTPUT_TOKENS,
+    LOCAL_MODEL_HF_TOKEN,
+    CLIENT_APP_ORIGINS,
+    API_ACCESS_TOKEN,
     EMBEDDING_MODEL,
     CHUNK_SIZE,
     CHUNK_OVERLAP,
@@ -107,9 +119,11 @@ from config import (
 app = FastAPI(title="CV Chatbot RAG API")
 
 # Add CORS middleware
+allowed_origins = CLIENT_APP_ORIGINS or ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your domain
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -130,6 +144,51 @@ cv_chunks = []
 cv_embeddings = None
 faiss_index = None
 llm_client = None
+local_model_path: str | None = None
+local_model_lock = threading.Lock()
+
+
+def personalize_question(text: str) -> Tuple[str, bool]:
+    """Normalize questions and detect whether the user is addressing the assistant."""
+
+    assistant_patterns = [
+        r"\bwho\s+are\s+you\b",
+        r"\bwhat\s+are\s+you\b",
+        r"\bwho\s+is\s+this\b",
+        r"\bare\s+you\s+(real|human)\b",
+    ]
+    normalized_lower = text.lower()
+    if any(re.search(pattern, normalized_lower) for pattern in assistant_patterns):
+        return text, True
+
+    def match_case(token: str, replacement: str) -> str:
+        if token.isupper():
+            return replacement.upper()
+        if token[0].isupper():
+            return replacement.capitalize()
+        return replacement
+
+    def replace_third_person(match: re.Match[str]) -> str:
+        token = match.group(0)
+        return match_case(token, "Bi")
+
+    def replace_possessive(match: re.Match[str]) -> str:
+        token = match.group(0)
+        return match_case(token, "Bi's")
+
+    updated = re.sub(r"\bhis\b", replace_possessive, text, flags=re.IGNORECASE)
+    updated = re.sub(r"\bhe\b", replace_third_person, updated, flags=re.IGNORECASE)
+    updated = re.sub(r"\bhim\b", replace_third_person, updated, flags=re.IGNORECASE)
+    return updated, False
+
+
+def verify_client_access(x_api_token: str = Header(default="")) -> None:
+    """Ensure only approved clients can call protected endpoints."""
+    if API_ACCESS_TOKEN:
+        if not x_api_token:
+            raise HTTPException(status_code=401, detail="Missing client token")
+        if x_api_token != API_ACCESS_TOKEN:
+            raise HTTPException(status_code=401, detail="Invalid client token")
 
 
 def load_cv_data(file_path: str = "cv_data.json") -> str:
@@ -266,7 +325,7 @@ def initialize_rag():
 
 def initialize_llm():
     """Initialize LLM client based on provider"""
-    global llm_client
+    global llm_client, local_model_path
 
     if LLM_PROVIDER == "groq":
         if not GROQ_API_KEY:
@@ -278,6 +337,47 @@ def initialize_llm():
         if not HUGGINGFACE_API_KEY:
             raise ValueError("HUGGINGFACE_API_KEY not set in environment variables")
         print(f"Initialized HuggingFace Inference API with model: {HUGGINGFACE_MODEL}")
+    elif LLM_PROVIDER == "local":
+        try:
+            from llama_cpp import Llama  # type: ignore[import]
+        except ImportError as import_err:
+            raise ValueError(
+                "llama-cpp-python is not installed. Ensure requirements are up to date."
+            ) from import_err
+
+        auth_token = LOCAL_MODEL_HF_TOKEN or None
+        print(
+            f"Downloading quantized model {LOCAL_MODEL_REPO}/{LOCAL_MODEL_FILENAME} "
+            "via Hugging Face Hub..."
+        )
+        try:
+            local_model_path = hf_hub_download(
+                repo_id=LOCAL_MODEL_REPO,
+                filename=LOCAL_MODEL_FILENAME,
+                token=auth_token,
+            )
+        except Exception as download_err:
+            raise ValueError(
+                f"Failed to download local model file: {download_err}"
+            ) from download_err
+
+        print(
+            "Loading local quantized model with llama.cpp "
+            f"(context={LOCAL_MODEL_CONTEXT_LENGTH}, threads={LOCAL_MODEL_THREADS}, "
+            f"batch={LOCAL_MODEL_BATCH_SIZE})..."
+        )
+        try:
+            llm_client = Llama(
+                model_path=local_model_path,
+                n_ctx=LOCAL_MODEL_CONTEXT_LENGTH,
+                n_threads=LOCAL_MODEL_THREADS,
+                n_batch=LOCAL_MODEL_BATCH_SIZE,
+                n_gpu_layers=0,
+                verbose=False,
+            )
+        except Exception as load_err:
+            raise ValueError(f"Failed to load local model: {load_err}") from load_err
+        print("Local quantized model ready for inference.")
     else:
         raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
 
@@ -359,12 +459,66 @@ def generate_response_huggingface(prompt: str) -> str:
         print("HuggingFace API error occurred:", repr(e))
         raise HTTPException(status_code=500, detail=f"HuggingFace API error: {str(e)}")
 
-def generate_response(context: str, question: str) -> str:
+
+def generate_response_local(prompt: str) -> str:
+    """Generate response using a locally hosted quantized model."""
+    global llm_client
+
+    if llm_client is None:
+        raise HTTPException(status_code=500, detail="Local model is not initialized")
+
+    try:
+        with local_model_lock:
+            completion = llm_client.create_chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=LOCAL_MODEL_MAX_OUTPUT_TOKENS,
+                temperature=0.7,
+                stop=["<end_of_turn>"],
+            )
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=f"Local model error: {err}") from err
+
+    try:
+        choices = completion.get("choices", [])
+        if choices:
+            message = choices[0].get("message", {})
+            content = message.get("content")
+            if content:
+                return content.strip()
+        return str(completion)
+    except Exception as parse_err:
+        raise HTTPException(
+            status_code=500, detail=f"Unexpected local model response format: {parse_err}"
+        ) from parse_err
+
+def generate_response(
+    context: str,
+    question: str,
+    original_question: str | None = None,
+    assistant_query: bool = False,
+) -> str:
     """Generate response using configured LLM provider"""
+    if assistant_query:
+        persona_instruction = (
+            "- Respond in first person as Bi's AI assistant. Mention that you run on Google "
+            "Gemma 2B IT quantized to Q4_K_M via llama.cpp with MiniLM embeddings and FAISS on CPU."
+        )
+    else:
+        persona_instruction = (
+            "- Describe Bi in the third person (use \"Bi\" or masculine pronouns like \"he/him\") using only the provided context."
+        )
+
     prompt = f"""Context from CV:
 {context}
 
-Question: {question}
+Instructions:
+- You are Bi's AI assistant built on Google Gemma 2B IT quantized to Q4_K_M via llama.cpp, running locally with MiniLM embeddings and FAISS.
+{persona_instruction}
+- If the context lacks the answer, state that politely.
+
+Question interpreted for retrieval: {question}
+
+Original user question: {original_question or question}
 
 Answer based on the context above:"""
 
@@ -372,6 +526,11 @@ Answer based on the context above:"""
         return generate_response_groq(prompt)
     elif LLM_PROVIDER == "huggingface":
         return generate_response_huggingface(prompt)
+    elif LLM_PROVIDER == "local":
+        local_prompt = (
+            f"{SYSTEM_PROMPT.strip()}\n\n{prompt.strip()}\n\nResponse:"
+        )
+        return generate_response_local(local_prompt)
     else:
         raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
 
@@ -397,17 +556,24 @@ async def root():
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, _: None = Depends(verify_client_access)):
     """Main chat endpoint with RAG"""
     try:
+        normalized_message, is_assistant_query = personalize_question(request.message)
+
         # Retrieve relevant chunks
-        relevant_chunks = retrieve_relevant_chunks(request.message)
+        relevant_chunks = retrieve_relevant_chunks(normalized_message)
 
         # Build context from chunks
         context = "\n\n".join(relevant_chunks)
 
         # Generate response
-        response = generate_response(context, request.message)
+        response = generate_response(
+            context,
+            normalized_message,
+            original_question=request.message,
+            assistant_query=is_assistant_query,
+        )
 
         return ChatResponse(
             response=response,
@@ -425,7 +591,10 @@ async def health():
         "rag_initialized": embedding_model is not None,
         "llm_initialized": llm_client is not None or LLM_PROVIDER == "huggingface",
         "chunks_count": len(cv_chunks),
-        "llm_provider": LLM_PROVIDER
+        "llm_provider": LLM_PROVIDER,
+        "local_model_path": local_model_path if LLM_PROVIDER == "local" else None,
+        "allowed_origins": allowed_origins,
+        "token_protected": bool(API_ACCESS_TOKEN),
     }
 
 
