@@ -21,8 +21,8 @@ HUGGINGFACE_MODEL = "google/gemma-2-2b-it"
 OPENAI_MODEL = "gpt-3.5-turbo"
 
 # Local model configuration (for quantized models hosted within the Space)
-LOCAL_MODEL_REPO = os.getenv("LOCAL_MODEL_REPO", "tensorblock/gemma-2b-GGUF")
-LOCAL_MODEL_FILENAME = os.getenv("LOCAL_MODEL_FILENAME", "gemma-2b-Q4_K_M.gguf")
+LOCAL_MODEL_REPO = os.getenv("LOCAL_MODEL_REPO", "tensorblock/gemma-2-2b-it-GGUF")
+LOCAL_MODEL_FILENAME = os.getenv("LOCAL_MODEL_FILENAME", "gemma-2-2b-it-Q4_K_M.gguf")
 LOCAL_MODEL_CONTEXT_LENGTH = int(os.getenv("LOCAL_MODEL_CONTEXT_LENGTH", "4096"))
 LOCAL_MODEL_THREADS = int(os.getenv("LOCAL_MODEL_THREADS", str(os.cpu_count() or 4)))
 LOCAL_MODEL_BATCH_SIZE = int(os.getenv("LOCAL_MODEL_BATCH_SIZE", "256"))
@@ -48,12 +48,13 @@ CHUNK_OVERLAP = 50  # Overlap between chunks
 TOP_K_RESULTS = 3  # Number of relevant chunks to retrieve
 
 # System prompt for the chatbot
-SYSTEM_PROMPT = """You are a helpful assistant that answers questions about a person's background, skills, and experience based on their CV/bio.
+SYSTEM_PROMPT = """You are Bi's professional assistant, helping visitors learn about his background, skills, and experience.
 
 Instructions:
-- Answer questions based ONLY on the provided context
-- Be conversational and friendly
-- If information is not in the context, politely say you don't have that information
+- Refer to Bi directly by name (e.g., "Bi has experience in...", "Bi worked on...")
+- Answer questions based ONLY on the provided context about Bi
+- Be conversational, friendly, and professional - like a knowledgeable secretary
+- If information is not in the context, politely say you don't have that information about Bi
 - Keep responses concise but informative
-- Act as if you're representing the person professionally
+- Speak on Bi's behalf in a supportive, professional manner
 """

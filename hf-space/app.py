@@ -421,7 +421,8 @@ def initialize_llm():
                 n_threads=LOCAL_MODEL_THREADS,
                 n_batch=LOCAL_MODEL_BATCH_SIZE,
                 n_gpu_layers=0,
-                verbose=False,
+                chat_format="gemma",  # Works for both Gemma 1 and Gemma 2
+                verbose=True,  # Enable to see prompt formatting
             )
         except Exception as load_err:
             raise ValueError(f"Failed to load local model: {load_err}") from load_err
@@ -508,7 +509,7 @@ def generate_response_huggingface(prompt: str) -> str:
         raise HTTPException(status_code=500, detail=f"HuggingFace API error: {str(e)}")
 
 
-def generate_response_local(prompt: str) -> str:
+def generate_response_local(system_prompt: str, user_prompt: str) -> str:
     """Generate response using a locally hosted quantized model."""
     global llm_client
 
@@ -517,14 +518,21 @@ def generate_response_local(prompt: str) -> str:
 
     try:
         with local_model_lock:
+            if os.getenv("DEBUG_LOCAL_PROMPT", "0") == "1":
+                preview = user_prompt if len(user_prompt) < 400 else user_prompt[:400] + "..."
+                print("Local prompt =>", preview)
             completion = llm_client.create_chat_completion(
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
                 max_tokens=LOCAL_MODEL_MAX_OUTPUT_TOKENS,
-                temperature=0.7,
-                stop=["<end_of_turn>"],
+                temperature=0.5,
+                top_p=0.9,
+                repeat_penalty=1.2,
+                stop=["<end_of_turn>", "</s>"],
             )
     except Exception as err:
-        print(err)
         raise HTTPException(status_code=500, detail=f"Local model error: {err}") from err
 
     try:
@@ -536,7 +544,6 @@ def generate_response_local(prompt: str) -> str:
                 return content.strip()
         return str(completion)
     except Exception as parse_err:
-        print(err)
         raise HTTPException(
             status_code=500, detail=f"Unexpected local model response format: {parse_err}"
         ) from parse_err
@@ -545,27 +552,46 @@ def generate_response(
     context: str,
     question: str,
     original_question: str | None = None,
+    assistant_query: bool = False,
 ) -> str:
     """Generate response using configured LLM provider"""
+    if assistant_query:
+        persona_instruction = (
+            "Respond in first person as Bi's AI assistant. Mention you run locally on a "
+            "quantized Google Gemma 2B IT model (Q4_K_M via llama.cpp with MiniLM embeddings and FAISS)."
+        )
+    else:
+        persona_instruction = (
+            "Speak directly about Bi by name in a professional, supportive manner - like a knowledgeable secretary. "
+            "Use direct references such as 'Bi has experience in...', 'Bi specializes in...', 'Bi worked on...'. "
+            "Rely only on the provided context."
+        )
 
-    prompt = f"""Context from CV:
+    system_prompt = "\n".join(
+        [
+            SYSTEM_PROMPT.strip(),
+            persona_instruction,
+            "Provide a direct, concise answer without repeating the context.",
+            "If the context lacks the answer, state that politely.",
+            "Do not echo or list the context - synthesize it into a clear response.",
+        ]
+    )
+
+    user_prompt = f"""Context:
 {context}
 
-Instructions:
-- You are Bi's AI assistant built on Google Gemma 2B IT quantized to Q4_K_M via llama.cpp, running locally with MiniLM embeddings and FAISS.
-- If the context lacks the answer, state that politely.
+Question: {original_question or question}
 
-Question interpreted for retrieval: {question}
+Provide a concise, professional answer based only on the context above."""
 
-Answer based on the context above:"""
+    combined_prompt = f"{system_prompt}\n\n{user_prompt}"
 
     if LLM_PROVIDER == "groq":
-        return generate_response_groq(prompt)
+        return generate_response_groq(combined_prompt)
+    elif LLM_PROVIDER == "huggingface":
+        return generate_response_huggingface(combined_prompt)
     elif LLM_PROVIDER == "local":
-        local_prompt = (
-            f"{SYSTEM_PROMPT.strip()}\n\n{prompt.strip()}\n\nResponse:"
-        )
-        return generate_response_local(local_prompt)
+        return generate_response_local(system_prompt, user_prompt)
     else:
         raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
 
