@@ -37,6 +37,10 @@ CLIENT_APP_ORIGINS = [
 ]
 API_ACCESS_TOKEN = os.getenv("API_ACCESS_TOKEN", "")
 
+# Session token configuration
+SESSION_TOKEN_SECRET = os.getenv("SESSION_TOKEN_SECRET", "")
+SESSION_TOKEN_TTL_SECONDS = int(os.getenv("SESSION_TOKEN_TTL_SECONDS", "600"))
+
 # RAG Configuration
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # Fast, lightweight
 CHUNK_SIZE = 500  # Characters per chunk

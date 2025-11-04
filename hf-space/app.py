@@ -7,6 +7,7 @@ import json
 import os
 import re
 import threading
+import time
 from typing import List, Dict, Optional, Tuple
 import numpy as np
 import torch
@@ -17,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import huggingface_hub
 from huggingface_hub import hf_hub_download
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 # Provide backward-compatible alias for deprecated cached_download expected by older sentence-transformers.
 if not hasattr(huggingface_hub, "cached_download"):
@@ -108,6 +110,8 @@ from config import (
     LOCAL_MODEL_HF_TOKEN,
     CLIENT_APP_ORIGINS,
     API_ACCESS_TOKEN,
+    SESSION_TOKEN_SECRET,
+    SESSION_TOKEN_TTL_SECONDS,
     EMBEDDING_MODEL,
     CHUNK_SIZE,
     CHUNK_OVERLAP,
@@ -146,6 +150,37 @@ faiss_index = None
 llm_client = None
 local_model_path: str | None = None
 local_model_lock = threading.Lock()
+_session_serializer: Optional[URLSafeTimedSerializer] = None
+
+
+def get_session_serializer() -> URLSafeTimedSerializer:
+    """Lazily initialize the session token serializer."""
+    global _session_serializer
+    if not SESSION_TOKEN_SECRET:
+        raise HTTPException(
+            status_code=500,
+            detail="SESSION_TOKEN_SECRET is not configured on the server.",
+        )
+    if _session_serializer is None:
+        _session_serializer = URLSafeTimedSerializer(SESSION_TOKEN_SECRET)
+    return _session_serializer
+
+
+def create_session_token() -> str:
+    """Create a signed, timestamped session token."""
+    serializer = get_session_serializer()
+    return serializer.dumps({"issued_at": int(time.time())})
+
+
+def validate_session_token(token: str) -> None:
+    """Validate an incoming session token and enforce expiration."""
+    serializer = get_session_serializer()
+    try:
+        serializer.loads(token, max_age=SESSION_TOKEN_TTL_SECONDS)
+    except SignatureExpired as err:
+        raise HTTPException(status_code=401, detail="Session token expired") from err
+    except BadSignature as err:
+        raise HTTPException(status_code=401, detail="Invalid session token") from err
 
 
 def personalize_question(text: str) -> Tuple[str, bool]:
@@ -182,13 +217,26 @@ def personalize_question(text: str) -> Tuple[str, bool]:
     return updated, False
 
 
-def verify_client_access(x_api_token: str = Header(default="")) -> None:
+def verify_client_access(
+    x_api_token: str = Header(default=""),
+    x_session_token: str = Header(default=""),
+) -> None:
     """Ensure only approved clients can call protected endpoints."""
     if API_ACCESS_TOKEN:
         if not x_api_token:
             raise HTTPException(status_code=401, detail="Missing client token")
         if x_api_token != API_ACCESS_TOKEN:
             raise HTTPException(status_code=401, detail="Invalid client token")
+        return
+
+    if SESSION_TOKEN_SECRET:
+        if not x_session_token:
+            raise HTTPException(status_code=401, detail="Missing session token")
+        validate_session_token(x_session_token)
+        return
+
+    # If no secrets configured, allow access (useful for local development)
+    return
 
 
 def load_cv_data(file_path: str = "cv_data.json") -> str:
@@ -476,6 +524,7 @@ def generate_response_local(prompt: str) -> str:
                 stop=["<end_of_turn>"],
             )
     except Exception as err:
+        print(err)
         raise HTTPException(status_code=500, detail=f"Local model error: {err}") from err
 
     try:
@@ -487,6 +536,7 @@ def generate_response_local(prompt: str) -> str:
                 return content.strip()
         return str(completion)
     except Exception as parse_err:
+        print(err)
         raise HTTPException(
             status_code=500, detail=f"Unexpected local model response format: {parse_err}"
         ) from parse_err
@@ -495,37 +545,22 @@ def generate_response(
     context: str,
     question: str,
     original_question: str | None = None,
-    assistant_query: bool = False,
 ) -> str:
     """Generate response using configured LLM provider"""
-    if assistant_query:
-        persona_instruction = (
-            "- Respond in first person as Bi's AI assistant. Mention that you run on Google "
-            "Gemma 2B IT quantized to Q4_K_M via llama.cpp with MiniLM embeddings and FAISS on CPU."
-        )
-    else:
-        persona_instruction = (
-            "- Describe Bi in the third person (use \"Bi\" or masculine pronouns like \"he/him\") using only the provided context."
-        )
 
     prompt = f"""Context from CV:
 {context}
 
 Instructions:
 - You are Bi's AI assistant built on Google Gemma 2B IT quantized to Q4_K_M via llama.cpp, running locally with MiniLM embeddings and FAISS.
-{persona_instruction}
 - If the context lacks the answer, state that politely.
 
 Question interpreted for retrieval: {question}
-
-Original user question: {original_question or question}
 
 Answer based on the context above:"""
 
     if LLM_PROVIDER == "groq":
         return generate_response_groq(prompt)
-    elif LLM_PROVIDER == "huggingface":
-        return generate_response_huggingface(prompt)
     elif LLM_PROVIDER == "local":
         local_prompt = (
             f"{SYSTEM_PROMPT.strip()}\n\n{prompt.strip()}\n\nResponse:"
@@ -555,14 +590,21 @@ async def root():
     }
 
 
+@app.get("/session-token")
+async def session_token():
+    """Issue a short-lived session token for client-side access."""
+    if not SESSION_TOKEN_SECRET:
+        raise HTTPException(status_code=500, detail="Session tokens are not configured")
+    token = create_session_token()
+    return {"token": token, "expires_in": SESSION_TOKEN_TTL_SECONDS}
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest, _: None = Depends(verify_client_access)):
     """Main chat endpoint with RAG"""
     try:
-        normalized_message, is_assistant_query = personalize_question(request.message)
-
         # Retrieve relevant chunks
-        relevant_chunks = retrieve_relevant_chunks(normalized_message)
+        relevant_chunks = retrieve_relevant_chunks(request.message)
 
         # Build context from chunks
         context = "\n\n".join(relevant_chunks)
@@ -570,9 +612,8 @@ async def chat(request: ChatRequest, _: None = Depends(verify_client_access)):
         # Generate response
         response = generate_response(
             context,
-            normalized_message,
+            request.message,
             original_question=request.message,
-            assistant_query=is_assistant_query,
         )
 
         return ChatResponse(
@@ -580,6 +621,7 @@ async def chat(request: ChatRequest, _: None = Depends(verify_client_access)):
             context_used=relevant_chunks
         )
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -595,6 +637,8 @@ async def health():
         "local_model_path": local_model_path if LLM_PROVIDER == "local" else None,
         "allowed_origins": allowed_origins,
         "token_protected": bool(API_ACCESS_TOKEN),
+        "session_tokens_enabled": bool(SESSION_TOKEN_SECRET),
+        "session_token_ttl": SESSION_TOKEN_TTL_SECONDS if SESSION_TOKEN_SECRET else None,
     }
 
 
