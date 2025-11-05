@@ -20,7 +20,7 @@ LOCAL_MODEL_FILENAME = os.getenv("LOCAL_MODEL_FILENAME", "tinyllama-1.1b-chat-v1
 LOCAL_MODEL_CONTEXT_LENGTH = int(os.getenv("LOCAL_MODEL_CONTEXT_LENGTH", "2048"))
 LOCAL_MODEL_THREADS = int(os.getenv("LOCAL_MODEL_THREADS", str(os.cpu_count() or 4)))
 LOCAL_MODEL_BATCH_SIZE = int(os.getenv("LOCAL_MODEL_BATCH_SIZE", "256"))
-LOCAL_MODEL_MAX_OUTPUT_TOKENS = int(os.getenv("LOCAL_MODEL_MAX_OUTPUT_TOKENS", "512"))
+LOCAL_MODEL_MAX_OUTPUT_TOKENS = int(os.getenv("LOCAL_MODEL_MAX_OUTPUT_TOKENS", "150"))
 LOCAL_MODEL_HF_TOKEN = os.getenv("LOCAL_MODEL_HF_TOKEN", HUGGINGFACE_API_KEY or "")
 
 # Access control configuration
@@ -37,18 +37,9 @@ SESSION_TOKEN_TTL_SECONDS = int(os.getenv("SESSION_TOKEN_TTL_SECONDS", "600"))
 
 # RAG Configuration
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # Fast, lightweight
-CHUNK_SIZE = 500  # Characters per chunk
-CHUNK_OVERLAP = 50  # Overlap between chunks
-TOP_K_RESULTS = 3  # Number of relevant chunks to retrieve
+CHUNK_SIZE = 300  # Characters per chunk (reduced for faster inference)
+CHUNK_OVERLAP = 30  # Overlap between chunks
+TOP_K_RESULTS = 2  # Number of relevant chunks to retrieve (reduced to minimize context)
 
 # System prompt for the chatbot
-SYSTEM_PROMPT = """You are Bi's professional assistant, helping visitors learn about his background, skills, and experience.
-
-Instructions:
-- Refer to Bi directly by name (e.g., "Bi has experience in...", "Bi worked on...")
-- Answer questions based ONLY on the provided context about Bi
-- Be conversational, friendly, and professional - like a knowledgeable secretary
-- If information is not in the context, politely say you don't have that information about Bi
-- Keep responses concise but informative
-- Speak on Bi's behalf in a supportive, professional manner
-"""
+SYSTEM_PROMPT = """Answer questions about Bi using the provided context. Keep answers short and direct. Always refer to Bi by name."""

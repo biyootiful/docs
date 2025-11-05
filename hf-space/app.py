@@ -479,10 +479,10 @@ def generate_response_local(system_prompt: str, user_prompt: str) -> str:
                     {"role": "user", "content": user_prompt},
                 ],
                 max_tokens=LOCAL_MODEL_MAX_OUTPUT_TOKENS,
-                temperature=0.5,
-                top_p=0.9,
-                repeat_penalty=1.2,
-                stop=["<end_of_turn>", "</s>"],
+                temperature=0.3,
+                top_p=0.7,
+                repeat_penalty=1.3,
+                stop=["<end_of_turn>", "</s>", "Question:", "Context:"],
             )
     except Exception as err:
         raise HTTPException(status_code=500, detail=f"Local model error: {err}") from err
@@ -507,34 +507,14 @@ def generate_response(
     assistant_query: bool = False,
 ) -> str:
     """Generate response using configured LLM provider"""
-    if assistant_query:
-        persona_instruction = (
-            "Respond in first person as Bi's AI assistant. Mention you run locally on a "
-            "quantized TinyLlama 1.1B Chat model (Q4_K_M via llama.cpp with MiniLM embeddings and FAISS)."
-        )
-    else:
-        persona_instruction = (
-            "Speak directly about Bi by name in a professional, supportive manner - like a knowledgeable secretary. "
-            "Use direct references such as 'Bi has experience in...', 'Bi specializes in...', 'Bi worked on...'. "
-            "Rely only on the provided context."
-        )
+    system_prompt = SYSTEM_PROMPT.strip()
 
-    system_prompt = "\n".join(
-        [
-            SYSTEM_PROMPT.strip(),
-            persona_instruction,
-            "Provide a direct, concise answer without repeating the context.",
-            "If the context lacks the answer, state that politely.",
-            "Do not echo or list the context - synthesize it into a clear response.",
-        ]
-    )
-
-    user_prompt = f"""Context:
+    user_prompt = f"""Context about Bi:
 {context}
 
 Question: {original_question or question}
 
-Provide a concise, professional answer based only on the context above."""
+Answer:"""
 
     combined_prompt = f"{system_prompt}\n\n{user_prompt}"
 
