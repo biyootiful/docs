@@ -6,6 +6,6 @@ faiss-cpu==1.8.0
 pydantic==2.5.0
 numpy>=1.26.4,<2
 python-multipart==0.0.6
-llama-cpp-python==0.2.82
+llama-cpp-python>=0.3.6
 itsdangerous==2.2.0
 requests==2.31.0

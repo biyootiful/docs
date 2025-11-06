@@ -29,3 +29,6 @@ test_*.py
 
 # Logs
 *.log
+
+# HuggingFace Space deployment
+hf-deploy/
