@@ -3,9 +3,12 @@ CV Chatbot with RAG (Retrieval-Augmented Generation)
 FastAPI backend that uses semantic search to answer questions about your CV
 """
 
+import importlib
 import json
 import os
 import re
+import subprocess
+import sys
 import threading
 import time
 from typing import List, Dict, Optional, Tuple
@@ -94,6 +97,12 @@ from config import (
     SYSTEM_PROMPT
 )
 
+LLAMA_CPP_WHEEL_INDEX = os.getenv(
+    "LLAMA_CPP_WHEEL_INDEX",
+    "https://abetlen.github.io/llama-cpp-python/whl/cpu",
+)
+LLAMA_CPP_VERSION = os.getenv("LLAMA_CPP_VERSION", "0.3.16")
+
 # Initialize FastAPI
 app = FastAPI(title="CV Chatbot RAG API")
 
@@ -126,6 +135,39 @@ llm_client = None
 local_model_path: str | None = None
 local_model_lock = threading.Lock()
 _session_serializer: Optional[URLSafeTimedSerializer] = None
+
+
+def ensure_llama_cpp_installed() -> None:
+    """Install the prebuilt CPU wheel for llama-cpp-python when needed."""
+    if LLM_PROVIDER != "local":
+        return
+
+    try:
+        importlib.import_module("llama_cpp")
+        return
+    except ImportError:
+        pass
+
+    package_spec = f"llama-cpp-python=={LLAMA_CPP_VERSION}"
+    print(f"Installing {package_spec} from llama.cpp CPU wheel index...")
+    cmd = [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "--no-cache-dir",
+    ]
+    index_url = LLAMA_CPP_WHEEL_INDEX.strip()
+    if index_url:
+        cmd.extend(["--extra-index-url", index_url])
+    cmd.append(package_spec)
+
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as install_err:
+        raise RuntimeError(
+            f"Failed to install {package_spec} from {index_url or 'PyPI'}"
+        ) from install_err
 
 
 def get_session_serializer() -> URLSafeTimedSerializer:
@@ -353,14 +395,16 @@ def initialize_llm():
     if LLM_PROVIDER == "huggingface":
         # Will use requests for HF Inference API
         if not HUGGINGFACE_API_KEY:
-            raise ValueError("HUGGINGFACE_API_KEY not set in environment variables")
-        print(f"Initialized HuggingFace Inference API with model: {HUGGINGFACE_MODEL}")
+            print("WARNING: HUGGINGFACE_API_KEY not set - HuggingFace provider will fail at runtime")
+        else:
+            print(f"Initialized HuggingFace Inference API with model: {HUGGINGFACE_MODEL}")
     elif LLM_PROVIDER == "local":
+        ensure_llama_cpp_installed()
         try:
             from llama_cpp import Llama  # type: ignore[import]
         except ImportError as import_err:
             raise ValueError(
-                "llama-cpp-python is not installed. Ensure requirements are up to date."
+                "llama-cpp-python could not be imported even after attempting installation."
             ) from import_err
 
         auth_token = LOCAL_MODEL_HF_TOKEN or None
@@ -389,8 +433,11 @@ def initialize_llm():
                 model_path=local_model_path,
                 n_ctx=LOCAL_MODEL_CONTEXT_LENGTH,
                 n_threads=LOCAL_MODEL_THREADS,
+                n_threads_batch=LOCAL_MODEL_THREADS,  # Use all threads for batch processing
                 n_batch=LOCAL_MODEL_BATCH_SIZE,
                 n_gpu_layers=0,
+                use_mmap=True,  # Memory-mapped file loading (faster, less RAM)
+                use_mlock=False,  # Don't lock memory (not needed for HF Spaces)
                 verbose=True,  # Enable to see prompt formatting
             )
         except Exception as load_err:
@@ -482,7 +529,7 @@ def generate_response_local(system_prompt: str, user_prompt: str) -> str:
                 temperature=0.3,
                 top_p=0.7,
                 repeat_penalty=1.3,
-                stop=["<end_of_turn>", "</s>", "Question:", "Context:"],
+                stop=["<|im_end|>", "<|endoftext|>", "<think>"],  # Qwen3 stop tokens + thinking
             )
     except Exception as err:
         raise HTTPException(status_code=500, detail=f"Local model error: {err}") from err
