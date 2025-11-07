@@ -689,7 +689,13 @@
             }
         }
 
-        let conversationHistory = [];
+        // Chat history with sliding window (last 6 messages = 3 turns)
+        const MAX_HISTORY_MESSAGES = 6;
+        let conversationHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+
+        function saveHistory() {
+            localStorage.setItem('chatHistory', JSON.stringify(conversationHistory));
+        }
 
         function autoResize(textarea) {
             textarea.style.height = 'auto';
@@ -774,7 +780,6 @@
 
             // Add user message
             addMessage(messageText, true);
-            conversationHistory.push({ role: 'user', content: messageText });
 
             // Clear input
             if (!message) {
@@ -788,13 +793,17 @@
             try {
                 await ensureSessionToken();
 
+                // Send request with history
                 let response = await fetch(API_ENDPOINT, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-Session-Token': sessionToken,
                     },
-                    body: JSON.stringify({ message: messageText })
+                    body: JSON.stringify({
+                        message: messageText,
+                        history: conversationHistory  // Send chat history
+                    })
                 });
 
                 if (response.status === 401) {
@@ -805,7 +814,10 @@
                             'Content-Type': 'application/json',
                             'X-Session-Token': sessionToken,
                         },
-                        body: JSON.stringify({ message: messageText })
+                        body: JSON.stringify({
+                            message: messageText,
+                            history: conversationHistory
+                        })
                     });
                 }
 
@@ -820,7 +832,18 @@
 
                 // Add assistant response
                 addMessage(data.response, false);
+
+                // Update history with new messages
+                conversationHistory.push({ role: 'user', content: messageText });
                 conversationHistory.push({ role: 'assistant', content: data.response });
+
+                // Maintain sliding window (keep last N messages)
+                if (conversationHistory.length > MAX_HISTORY_MESSAGES) {
+                    conversationHistory = conversationHistory.slice(-MAX_HISTORY_MESSAGES);
+                }
+
+                // Save to localStorage
+                saveHistory();
 
             } catch (error) {
                 console.error('Error:', error);
@@ -864,7 +887,9 @@
                     </div>
                 </div>
             `;
+            // Clear chat history
             conversationHistory = [];
+            localStorage.removeItem('chatHistory');
             document.getElementById('chatInput').focus();
         }
 

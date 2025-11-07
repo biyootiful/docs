@@ -120,8 +120,13 @@ app.add_middleware(
 )
 
 # Pydantic models
+class ChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
 class ChatRequest(BaseModel):
     message: str
+    history: List[ChatMessage] = []  # Optional chat history (sliding window)
 
 class ChatResponse(BaseModel):
     response: str
@@ -277,6 +282,11 @@ def load_cv_data(file_path: str = "cv_data.json") -> str:
     # Summary
     if "summary" in data:
         text_parts.append(f"Professional Summary: {data['summary']}")
+
+    # Capabilities (pre-defined chunks for direct embedding)
+    if "capabilities" in data:
+        for cap in data["capabilities"]:
+            text_parts.append(f"Capability: {cap['text']}")
 
     # Skills
     if "skills" in data:
@@ -477,7 +487,7 @@ def retrieve_relevant_chunks(query: str, top_k: int = TOP_K_RESULTS) -> List[str
     return relevant_chunks
 
 
-def generate_response_beam(system_prompt: str, user_prompt: str) -> str:
+def generate_response_beam(system_prompt: str, user_prompt: str, history: List[Dict] = None) -> str:
     """Generate response using Beam vLLM service (Qwen3 4B Instruct on GPU)."""
     import requests
 
@@ -486,13 +496,16 @@ def generate_response_beam(system_prompt: str, user_prompt: str) -> str:
 
     api_url = f"{BEAM_API_URL.rstrip('/')}/v1/chat/completions"
 
+    # Build messages array with history
+    messages = [{"role": "system", "content": system_prompt}]
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": user_prompt})
+
     payload = {
         "model": "Qwen/Qwen3-4B-Instruct-2507",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "max_tokens": 100,
+        "messages": messages,
+        "max_tokens": 200,  # Increased for complete responses on GPU
         "temperature": 0.3,
         "top_p": 0.7,
     }
@@ -560,7 +573,7 @@ def generate_response_huggingface(prompt: str) -> str:
         raise HTTPException(status_code=500, detail=f"HuggingFace API error: {str(e)}")
 
 
-def generate_response_local(system_prompt: str, user_prompt: str) -> str:
+def generate_response_local(system_prompt: str, user_prompt: str, history: List[Dict] = None) -> str:
     """Generate response using a locally hosted quantized model."""
     global llm_client
 
@@ -572,11 +585,15 @@ def generate_response_local(system_prompt: str, user_prompt: str) -> str:
             if os.getenv("DEBUG_LOCAL_PROMPT", "0") == "1":
                 preview = user_prompt if len(user_prompt) < 400 else user_prompt[:400] + "..."
                 print("Local prompt =>", preview)
+
+            # Build messages array with history
+            messages = [{"role": "system", "content": system_prompt}]
+            if history:
+                messages.extend(history)
+            messages.append({"role": "user", "content": user_prompt})
+
             completion = llm_client.create_chat_completion(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+                messages=messages,
                 max_tokens=LOCAL_MODEL_MAX_OUTPUT_TOKENS,
                 temperature=0.3,
                 top_p=0.7,
@@ -605,6 +622,7 @@ def generate_response(
     question: str,
     original_question: str | None = None,
     assistant_query: bool = False,
+    history: List[Dict] = None,
 ) -> str:
     """Generate response using configured LLM provider"""
     system_prompt = SYSTEM_PROMPT.strip()
@@ -619,11 +637,11 @@ Answer:"""
     combined_prompt = f"{system_prompt}\n\n{user_prompt}"
 
     if LLM_PROVIDER == "beam":
-        return generate_response_beam(system_prompt, user_prompt)
+        return generate_response_beam(system_prompt, user_prompt, history)
     elif LLM_PROVIDER == "huggingface":
         return generate_response_huggingface(combined_prompt)
     elif LLM_PROVIDER == "local":
-        return generate_response_local(system_prompt, user_prompt)
+        return generate_response_local(system_prompt, user_prompt, history)
     else:
         raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
 
@@ -667,11 +685,15 @@ async def chat(request: ChatRequest, _: None = Depends(verify_client_access)):
         # Build context from chunks
         context = "\n\n".join(relevant_chunks)
 
+        # Convert history to dict format
+        history_dicts = [{"role": msg.role, "content": msg.content} for msg in request.history] if request.history else None
+
         # Generate response
         response = generate_response(
             context,
             request.message,
             original_question=request.message,
+            history=history_dicts,
         )
 
         return ChatResponse(

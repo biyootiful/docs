@@ -41,7 +41,7 @@ SESSION_TOKEN_TTL_SECONDS = int(os.getenv("SESSION_TOKEN_TTL_SECONDS", "600"))
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # Fast, lightweight
 CHUNK_SIZE = 300  # Characters per chunk (reduced for faster inference)
 CHUNK_OVERLAP = 30  # Overlap between chunks
-TOP_K_RESULTS = 1  # Fewer chunks lowers prompt size on small CPU tiers
+TOP_K_RESULTS = 3  # Retrieve top 3 most relevant chunks (more context for GPU inference)
 
 # System prompt for the chatbot
 SYSTEM_PROMPT = """Answer questions about Bi using the provided context. Keep answers short and direct. Always refer to Bi by name."""
