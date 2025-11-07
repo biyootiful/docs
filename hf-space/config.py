@@ -6,9 +6,11 @@ Change LLM_PROVIDER to switch between different models
 import os
 
 # Swappable LLM provider (environment configurable)
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "local")  # Options: "huggingface", "local"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "beam")  # Options: "beam", "huggingface", "local"
 
 # API Keys (set these as environment variables in HuggingFace Space secrets)
+BEAM_API_URL = os.getenv("BEAM_API_URL", "")
+BEAM_API_TOKEN = os.getenv("BEAM_API_TOKEN", "")
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")
 
 # Model configurations
@@ -19,8 +21,8 @@ LOCAL_MODEL_REPO = os.getenv("LOCAL_MODEL_REPO", "bartowski/Qwen_Qwen3-4B-Instru
 LOCAL_MODEL_FILENAME = os.getenv("LOCAL_MODEL_FILENAME", "Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf")  # Q4_K_M (2.50GB, recommended)
 LOCAL_MODEL_CONTEXT_LENGTH = int(os.getenv("LOCAL_MODEL_CONTEXT_LENGTH", "2048"))
 LOCAL_MODEL_THREADS = int(os.getenv("LOCAL_MODEL_THREADS", str(os.cpu_count() or 2)))  # HF Spaces has 2 vCPUs
-LOCAL_MODEL_BATCH_SIZE = int(os.getenv("LOCAL_MODEL_BATCH_SIZE", "512"))  # Increased for better throughput
-LOCAL_MODEL_MAX_OUTPUT_TOKENS = int(os.getenv("LOCAL_MODEL_MAX_OUTPUT_TOKENS", "200"))
+LOCAL_MODEL_BATCH_SIZE = int(os.getenv("LOCAL_MODEL_BATCH_SIZE", "1024"))  # Optimal for CPU throughput
+LOCAL_MODEL_MAX_OUTPUT_TOKENS = int(os.getenv("LOCAL_MODEL_MAX_OUTPUT_TOKENS", "100"))  # Shorter responses for faster UX
 LOCAL_MODEL_HF_TOKEN = os.getenv("LOCAL_MODEL_HF_TOKEN", HUGGINGFACE_API_KEY or "")
 
 # Access control configuration

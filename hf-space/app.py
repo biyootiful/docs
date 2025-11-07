@@ -77,6 +77,8 @@ import faiss
 # Import configuration
 from config import (
     LLM_PROVIDER,
+    BEAM_API_URL,
+    BEAM_API_TOKEN,
     HUGGINGFACE_API_KEY,
     HUGGINGFACE_MODEL,
     LOCAL_MODEL_REPO,
@@ -392,7 +394,13 @@ def initialize_llm():
     """Initialize LLM client based on provider"""
     global llm_client, local_model_path
 
-    if LLM_PROVIDER == "huggingface":
+    if LLM_PROVIDER == "beam":
+        # Beam uses external vLLM API endpoint
+        if not BEAM_API_URL:
+            print("WARNING: BEAM_API_URL not set - Beam provider will fail at runtime")
+        else:
+            print(f"Initialized Beam vLLM API at: {BEAM_API_URL}")
+    elif LLM_PROVIDER == "huggingface":
         # Will use requests for HF Inference API
         if not HUGGINGFACE_API_KEY:
             print("WARNING: HUGGINGFACE_API_KEY not set - HuggingFace provider will fail at runtime")
@@ -469,6 +477,50 @@ def retrieve_relevant_chunks(query: str, top_k: int = TOP_K_RESULTS) -> List[str
     return relevant_chunks
 
 
+def generate_response_beam(system_prompt: str, user_prompt: str) -> str:
+    """Generate response using Beam vLLM service (Qwen3 4B Instruct on GPU)."""
+    import requests
+
+    if not BEAM_API_URL:
+        raise HTTPException(status_code=500, detail="BEAM_API_URL is not set")
+
+    api_url = f"{BEAM_API_URL.rstrip('/')}/v1/chat/completions"
+
+    payload = {
+        "model": "Qwen/Qwen3-4B-Instruct-2507",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "max_tokens": 100,
+        "temperature": 0.3,
+        "top_p": 0.7,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {BEAM_API_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(api_url, headers=headers, json=payload, timeout=120)
+        print("Beam status:", response.status_code)
+        response.raise_for_status()
+
+        result = response.json()
+        if isinstance(result, dict):
+            choices = result.get("choices")
+            if isinstance(choices, list) and choices:
+                message = choices[0].get("message", {})
+                content = message.get("content")
+                if content:
+                    return content.strip()
+        return str(result)
+    except Exception as e:
+        print("Beam API error occurred:", repr(e))
+        raise HTTPException(status_code=500, detail=f"Beam API error: {str(e)}")
+
+
 def generate_response_huggingface(prompt: str) -> str:
     """Generate response using HuggingFace Inference API (OpenAI-compatible endpoint)."""
     import requests
@@ -528,6 +580,7 @@ def generate_response_local(system_prompt: str, user_prompt: str) -> str:
                 max_tokens=LOCAL_MODEL_MAX_OUTPUT_TOKENS,
                 temperature=0.3,
                 top_p=0.7,
+                top_k=20,  # Qwen-recommended sampling parameter
                 repeat_penalty=1.3,
                 stop=["<|im_end|>", "<|endoftext|>", "<think>"],  # Qwen3 stop tokens + thinking
             )
@@ -565,7 +618,9 @@ Answer:"""
 
     combined_prompt = f"{system_prompt}\n\n{user_prompt}"
 
-    if LLM_PROVIDER == "huggingface":
+    if LLM_PROVIDER == "beam":
+        return generate_response_beam(system_prompt, user_prompt)
+    elif LLM_PROVIDER == "huggingface":
         return generate_response_huggingface(combined_prompt)
     elif LLM_PROVIDER == "local":
         return generate_response_local(system_prompt, user_prompt)
